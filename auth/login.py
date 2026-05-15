@@ -1,33 +1,38 @@
-# auth/login.py
-
 import customtkinter as ctk
 
-from pages.dashboard import Dashboard
-from database import cursor
+from pages.dashboard import DashboardPage
+from services.auth_service import AuthService
+
 from config import *
 
 
-class LoginPage:
+class LoginPage(ctk.CTkFrame):
 
-    def __init__(self, app):
+    def __init__(self, master):
 
-        self.app = app
+        super().__init__(master)
 
-        # =========================
-        # Main Background
-        # =========================
-        self.frame = ctk.CTkFrame(
-            app,
+        self.master = master
+
+        self.pack(fill="both", expand=True)
+
+        self.build_ui()
+
+    # =====================================
+    # UI
+    # =====================================
+    def build_ui(self):
+
+        # Main Container
+        self.configure(
             fg_color=BACKGROUND_COLOR
         )
 
-        self.frame.pack(fill="both", expand=True)
-
-        # =========================
+        # =====================================
         # Login Card
-        # =========================
+        # =====================================
         self.card = ctk.CTkFrame(
-            self.frame,
+            self,
             width=450,
             height=520,
             corner_radius=FRAME_RADIUS,
@@ -40,34 +45,38 @@ class LoginPage:
             anchor="center"
         )
 
-        # =========================
-        # App Title
-        # =========================
-        title = ctk.CTkLabel(
+        # =====================================
+        # Logo / Title
+        # =====================================
+        self.title = ctk.CTkLabel(
             self.card,
             text=APP_NAME,
             font=TITLE_FONT,
             text_color=TEXT_COLOR
         )
 
-        title.pack(pady=(40, 10))
+        self.title.pack(
+            pady=(40, 10)
+        )
 
-        # =========================
+        # =====================================
         # Subtitle
-        # =========================
-        subtitle = ctk.CTkLabel(
+        # =====================================
+        self.subtitle = ctk.CTkLabel(
             self.card,
             text="Login To Continue",
             font=TEXT_FONT,
             text_color=TEXT_SECONDARY
         )
 
-        subtitle.pack(pady=(0, 30))
+        self.subtitle.pack(
+            pady=(0, 30)
+        )
 
-        # =========================
+        # =====================================
         # Username Entry
-        # =========================
-        self.user = ctk.CTkEntry(
+        # =====================================
+        self.username_entry = ctk.CTkEntry(
             self.card,
             placeholder_text="Username",
             width=350,
@@ -76,12 +85,14 @@ class LoginPage:
             font=TEXT_FONT
         )
 
-        self.user.pack(pady=10)
+        self.username_entry.pack(
+            pady=10
+        )
 
-        # =========================
+        # =====================================
         # Password Entry
-        # =========================
-        self.password = ctk.CTkEntry(
+        # =====================================
+        self.password_entry = ctk.CTkEntry(
             self.card,
             placeholder_text="Password",
             show="●",
@@ -91,83 +102,127 @@ class LoginPage:
             font=TEXT_FONT
         )
 
-        self.password.pack(pady=10)
+        self.password_entry.pack(
+            pady=10
+        )
 
-        # =========================
+        # =====================================
         # Login Button
-        # =========================
-        login_btn = ctk.CTkButton(
+        # =====================================
+        self.login_button = ctk.CTkButton(
             self.card,
             text="LOGIN",
             width=350,
             height=50,
             corner_radius=BUTTON_RADIUS,
             fg_color=PRIMARY_COLOR,
-            hover_color="#1D4ED8",
+            hover_color=PRIMARY_HOVER,
             font=BUTTON_FONT,
             command=self.login
         )
 
-        login_btn.pack(pady=25)
+        self.login_button.pack(
+            pady=25
+        )
 
-        # =========================
+        # =====================================
         # Status Label
-        # =========================
-        self.status = ctk.CTkLabel(
+        # =====================================
+        self.status_label = ctk.CTkLabel(
             self.card,
             text="",
             font=SMALL_FONT,
             text_color=DANGER_COLOR
         )
 
-        self.status.pack(pady=5)
+        self.status_label.pack(
+            pady=5
+        )
 
-        # =========================
+        # =====================================
         # Footer
-        # =========================
-        footer = ctk.CTkLabel(
+        # =====================================
+        self.footer = ctk.CTkLabel(
             self.card,
             text="© 2026 SuperMarket POS",
             font=SMALL_FONT,
             text_color=TEXT_SECONDARY
         )
 
-        footer.pack(side="bottom", pady=20)
+        self.footer.pack(
+            side="bottom",
+            pady=20
+        )
 
-    # =========================
+        # =====================================
+        # Enter Key Login
+        # =====================================
+        self.password_entry.bind(
+            "<Return>",
+            lambda event: self.login()
+        )
+
+    # =====================================
     # Login Function
-    # =========================
+    # =====================================
     def login(self):
 
-        username = self.user.get().strip()
-        password = self.password.get().strip()
+        username = self.username_entry.get().strip()
 
-        # Empty Fields Validation
+        password = self.password_entry.get().strip()
+
+        # Empty Validation
         if not username or not password:
 
-            self.status.configure(
-                text="Please enter username and password"
+            self.show_error(
+                "Please enter username and password"
             )
 
             return
 
-        # Database Check
-        cursor.execute(
-            """
-            SELECT * FROM users
-            WHERE username=? AND password=?
-            """,
-            (username, password)
+        # Disable Button While Loading
+        self.login_button.configure(
+            state="disabled",
+            text="Please Wait..."
         )
 
-        user = cursor.fetchone()
+        # Authentication
+        user = AuthService.login(
+            username,
+            password
+        )
 
-        # Success Login
+        # Success
         if user:
 
-            self.frame.destroy()
+            self.destroy()
 
-            Dashboard(self.app)
+            DashboardPage(
+                self.master,
+                user
+            )
+
+        # Failed
+        else:
+
+            self.show_error(
+                "Invalid username or password"
+            )
+
+        # Enable Button Again
+        self.login_button.configure(
+            state="normal",
+            text="LOGIN"
+        )
+
+    # =====================================
+    # Error Handler
+    # =====================================
+    def show_error(self, message):
+
+        self.status_label.configure(
+            text=message
+        )
 
         # Failed Login
         else:
