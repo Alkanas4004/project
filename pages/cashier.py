@@ -2,56 +2,71 @@
 
 import customtkinter as ctk
 
-from database import conn, cursor
+from services.sales_service import SalesService
+from services.invoice_service import InvoiceService
+
 from config import *
 
 
-class CashierPage:
+class CashierPage(ctk.CTkFrame):
 
     def __init__(self, parent):
 
+        super().__init__(parent)
+
         self.total = 0
+
         self.cart_items = []
 
-        # =========================
-        # Main Container
-        # =========================
-        self.frame = ctk.CTkFrame(
-            parent,
-            fg_color=BACKGROUND_COLOR
-        )
-
-        self.frame.pack(
+        self.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=20
         )
 
-        # =========================
-        # Page Title
-        # =========================
+        self.build_ui()
+
+    # =====================================
+    # UI
+    # =====================================
+    def build_ui(self):
+
+        self.configure(
+            fg_color=BACKGROUND_COLOR
+        )
+
+        # =====================================
+        # Title
+        # =====================================
         title = ctk.CTkLabel(
-            self.frame,
+            self,
             text="Cashier System",
             font=TITLE_FONT,
             text_color=TEXT_COLOR
         )
 
-        title.pack(anchor="w", pady=(10, 20))
+        title.pack(
+            anchor="w",
+            pady=(10, 20)
+        )
 
-        # =========================
-        # Top Section
-        # =========================
+        # =====================================
+        # Top Frame
+        # =====================================
         top_frame = ctk.CTkFrame(
-            self.frame,
+            self,
             fg_color="transparent"
         )
 
-        top_frame.pack(fill="x")
+        top_frame.pack(
+            fill="x"
+        )
 
+        # =====================================
         # Barcode Entry
-        self.barcode = ctk.CTkEntry(
+        # =====================================
+        self.barcode_entry = ctk.CTkEntry(
             top_frame,
             placeholder_text="Scan Barcode...",
             width=500,
@@ -60,15 +75,19 @@ class CashierPage:
             font=TEXT_FONT
         )
 
-        self.barcode.pack(side="left", padx=(0, 15))
+        self.barcode_entry.pack(
+            side="left",
+            padx=(0, 15)
+        )
 
-        # Enter Key Support
-        self.barcode.bind(
+        self.barcode_entry.bind(
             "<Return>",
             lambda event: self.add_product()
         )
 
-        # Add Product Button
+        # =====================================
+        # Add Button
+        # =====================================
         add_btn = ctk.CTkButton(
             top_frame,
             text="Add Product",
@@ -76,18 +95,20 @@ class CashierPage:
             height=BUTTON_HEIGHT,
             corner_radius=BUTTON_RADIUS,
             fg_color=PRIMARY_COLOR,
-            hover_color="#1D4ED8",
+            hover_color=PRIMARY_HOVER,
             font=BUTTON_FONT,
             command=self.add_product
         )
 
-        add_btn.pack(side="left")
+        add_btn.pack(
+            side="left"
+        )
 
-        # =========================
-        # Cart Section
-        # =========================
+        # =====================================
+        # Cart Card
+        # =====================================
         cart_frame = ctk.CTkFrame(
-            self.frame,
+            self,
             fg_color=CARD_COLOR,
             corner_radius=FRAME_RADIUS
         )
@@ -98,7 +119,9 @@ class CashierPage:
             pady=25
         )
 
+        # =====================================
         # Cart Title
+        # =====================================
         cart_title = ctk.CTkLabel(
             cart_frame,
             text="Shopping Cart",
@@ -106,35 +129,43 @@ class CashierPage:
             text_color=TEXT_COLOR
         )
 
-        cart_title.pack(anchor="w", padx=20, pady=15)
+        cart_title.pack(
+            anchor="w",
+            padx=20,
+            pady=15
+        )
 
+        # =====================================
         # Cart Box
-        self.cart = ctk.CTkTextbox(
+        # =====================================
+        self.cart_box = ctk.CTkTextbox(
             cart_frame,
-            width=1200,
-            height=450,
-            font=("Consolas", 16),
+            font=("Consolas", 15),
             corner_radius=12
         )
 
-        self.cart.pack(
+        self.cart_box.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=(0, 20)
         )
 
-        # =========================
-        # Bottom Section
-        # =========================
+        # =====================================
+        # Bottom Frame
+        # =====================================
         bottom_frame = ctk.CTkFrame(
-            self.frame,
+            self,
             fg_color="transparent"
         )
 
-        bottom_frame.pack(fill="x")
+        bottom_frame.pack(
+            fill="x"
+        )
 
+        # =====================================
         # Total Label
+        # =====================================
         self.total_label = ctk.CTkLabel(
             bottom_frame,
             text="Total: 0.00 EGP",
@@ -142,9 +173,13 @@ class CashierPage:
             text_color=SUCCESS_COLOR
         )
 
-        self.total_label.pack(side="left")
+        self.total_label.pack(
+            side="left"
+        )
 
+        # =====================================
         # Checkout Button
+        # =====================================
         checkout_btn = ctk.CTkButton(
             bottom_frame,
             text="Checkout",
@@ -157,9 +192,13 @@ class CashierPage:
             command=self.checkout
         )
 
-        checkout_btn.pack(side="right")
+        checkout_btn.pack(
+            side="right"
+        )
 
+        # =====================================
         # Clear Cart Button
+        # =====================================
         clear_btn = ctk.CTkButton(
             bottom_frame,
             text="Clear Cart",
@@ -172,144 +211,149 @@ class CashierPage:
             command=self.clear_cart
         )
 
-        clear_btn.pack(side="right", padx=15)
+        clear_btn.pack(
+            side="right",
+            padx=15
+        )
 
-    # =========================
+    # =====================================
     # Add Product
-    # =========================
+    # =====================================
     def add_product(self):
 
-        barcode = self.barcode.get().strip()
+        barcode = self.barcode_entry.get().strip()
 
         if not barcode:
             return
 
-        cursor.execute(
-            """
-            SELECT * FROM products
-            WHERE barcode=?
-            """,
-            (barcode,)
+        product = SalesService.get_product_by_barcode(
+            barcode
         )
 
-        product = cursor.fetchone()
-
-        # Product Exists
-        if product:
-
-            # Check Stock
-            if int(product[5]) <= 0:
-
-                self.cart.insert(
-                    "end",
-                    f"❌ {product[1]} is out of stock\n"
-                )
-
-                return
-
-            # Add To Cart
-            self.cart.insert(
-                "end",
-                f"""
-Product : {product[1]}
-Price   : {product[4]} EGP
-------------------------------
-"""
-            )
-
-            self.total += float(product[4])
-
-            self.total_label.configure(
-                text=f"Total: {self.total:.2f} EGP"
-            )
-
-            self.cart_items.append(product)
-
-            # Update Stock
-            cursor.execute(
-                """
-                UPDATE products
-                SET quantity = quantity - 1
-                WHERE id=?
-                """,
-                (product[0],)
-            )
-
-            conn.commit()
-
+        # =====================================
         # Product Not Found
-        else:
+        # =====================================
+        if not product:
 
-            self.cart.insert(
+            self.cart_box.insert(
                 "end",
                 "❌ Product not found\n"
             )
 
-        # Clear Entry
-        self.barcode.delete(0, "end")
+            self.barcode_entry.delete(0, "end")
 
-    # =========================
+            return
+
+        # =====================================
+        # Out Of Stock
+        # =====================================
+        if product["quantity"] <= 0:
+
+            self.cart_box.insert(
+                "end",
+                f"❌ {product['name']} is out of stock\n"
+            )
+
+            self.barcode_entry.delete(0, "end")
+
+            return
+
+        # =====================================
+        # Add To Cart
+        # =====================================
+        self.cart_items.append(product)
+
+        self.total += product["sell_price"]
+
+        self.total_label.configure(
+            text=f"Total: {self.total:.2f} EGP"
+        )
+
+        self.cart_box.insert(
+            "end",
+            f"""
+Product : {product['name']}
+Price   : {product['sell_price']} EGP
+----------------------------------------
+"""
+        )
+
+        # =====================================
+        # Update Stock
+        # =====================================
+        SalesService.update_stock(
+            product["id"]
+        )
+
+        # =====================================
+        # Clear Entry
+        # =====================================
+        self.barcode_entry.delete(0, "end")
+
+    # =====================================
     # Checkout
-    # =========================
+    # =====================================
     def checkout(self):
 
         if not self.cart_items:
-            return
 
-        # Save Sale
-        cursor.execute(
-            """
-            INSERT INTO sales(total)
-            VALUES(?)
-            """,
-            (self.total,)
-        )
-
-        sale_id = cursor.lastrowid
-
-        # Save Sale Items
-        for product in self.cart_items:
-
-            cursor.execute(
-                """
-                INSERT INTO sale_items(
-                    sale_id,
-                    product_id,
-                    quantity,
-                    price
-                )
-                VALUES(?,?,?,?)
-                """,
-                (
-                    sale_id,
-                    product[0],
-                    1,
-                    product[4]
-                )
+            self.cart_box.insert(
+                "end",
+                "❌ Cart is empty\n"
             )
 
-        conn.commit()
+            return
 
-        # Success Message
-        self.cart.insert(
-            "end",
-            "\n✅ Sale Completed Successfully\n\n"
+        # =====================================
+        # Create Sale
+        # =====================================
+        sale_id = SalesService.create_sale(
+            self.total,
+            self.cart_items
         )
 
+        # =====================================
+        # Generate Invoice
+        # =====================================
+        InvoiceService.generate_invoice(
+            sale_id=sale_id,
+            items=self.cart_items,
+            total=self.total
+        )
+
+        # =====================================
+        # Success Message
+        # =====================================
+        self.cart_box.insert(
+            "end",
+            "\n✅ Sale Completed Successfully\n"
+        )
+
+        self.cart_box.insert(
+            "end",
+            f"🧾 Invoice Generated : invoice_{sale_id}.pdf\n\n"
+        )
+
+        # =====================================
         # Reset
+        # =====================================
         self.total = 0
+
         self.cart_items.clear()
 
         self.total_label.configure(
             text="Total: 0.00 EGP"
         )
 
-    # =========================
+    # =====================================
     # Clear Cart
-    # =========================
+    # =====================================
     def clear_cart(self):
 
-        self.cart.delete("1.0", "end")
+        self.cart_box.delete(
+            "1.0",
+            "end"
+        )
 
         self.total = 0
 
