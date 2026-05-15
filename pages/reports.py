@@ -1,175 +1,173 @@
-# pages/reports.py
-
 import customtkinter as ctk
 
-from database import cursor
+from services.report_service import ReportService
+
 from config import *
 
 
-class ReportsPage:
+class ReportsPage(ctk.CTkFrame):
 
     def __init__(self, parent):
 
-        # =========================
-        # Main Container
-        # =========================
-        self.frame = ctk.CTkFrame(
-            parent,
-            fg_color=BACKGROUND_COLOR
-        )
+        super().__init__(parent)
 
-        self.frame.pack(
+        self.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=20
         )
 
-        # =========================
+        self.build_ui()
+
+        self.load_statistics()
+
+        self.generate_report()
+
+    # =====================================
+    # UI
+    # =====================================
+    def build_ui(self):
+
+        self.configure(
+            fg_color=BACKGROUND_COLOR
+        )
+
+        # =====================================
         # Header
-        # =========================
-        header = ctk.CTkFrame(
-            self.frame,
+        # =====================================
+        self.header = ctk.CTkFrame(
+            self,
             fg_color="transparent"
         )
 
-        header.pack(fill="x", pady=(0, 20))
+        self.header.pack(
+            fill="x",
+            pady=(0, 20)
+        )
 
-        title = ctk.CTkLabel(
-            header,
+        self.title = ctk.CTkLabel(
+            self.header,
             text="Reports Dashboard",
             font=TITLE_FONT,
             text_color=TEXT_COLOR
         )
 
-        title.pack(side="left")
+        self.title.pack(
+            side="left"
+        )
 
-        # =========================
-        # Statistics Cards
-        # =========================
-        cards_frame = ctk.CTkFrame(
-            self.frame,
+        # =====================================
+        # Statistics Cards Container
+        # =====================================
+        self.cards_frame = ctk.CTkFrame(
+            self,
             fg_color="transparent"
         )
 
-        cards_frame.pack(fill="x", pady=(0, 20))
-
-        # Load Statistics
-        stats = self.get_statistics()
-
-        # Cards
-        self.create_card(
-            cards_frame,
-            "Total Products",
-            stats["total_products"],
-            PRIMARY_COLOR,
-            0
+        self.cards_frame.pack(
+            fill="x",
+            pady=(0, 20)
         )
 
-        self.create_card(
-            cards_frame,
-            "Stock Quantity",
-            stats["total_quantity"],
-            SUCCESS_COLOR,
-            1
-        )
+        # Make Grid Responsive
+        for i in range(4):
 
-        self.create_card(
-            cards_frame,
-            "Inventory Value",
-            f"{stats['inventory_value']:.2f} EGP",
-            WARNING_COLOR,
-            2
-        )
+            self.cards_frame.grid_columnconfigure(
+                i,
+                weight=1
+            )
 
-        self.create_card(
-            cards_frame,
-            "Low Stock",
-            stats["low_stock"],
-            DANGER_COLOR,
-            3
-        )
-
-        # =========================
-        # Reports Card
-        # =========================
-        report_card = ctk.CTkFrame(
-            self.frame,
+        # =====================================
+        # Report Card
+        # =====================================
+        self.report_card = ctk.CTkFrame(
+            self,
             fg_color=CARD_COLOR,
             corner_radius=FRAME_RADIUS
         )
 
-        report_card.pack(
+        self.report_card.pack(
             fill="both",
             expand=True
         )
 
-        report_title = ctk.CTkLabel(
-            report_card,
+        # =====================================
+        # Report Title
+        # =====================================
+        self.report_title = ctk.CTkLabel(
+            self.report_card,
             text="Inventory Report",
             font=SUBTITLE_FONT,
             text_color=TEXT_COLOR
         )
 
-        report_title.pack(anchor="w", padx=20, pady=(20, 10))
+        self.report_title.pack(
+            anchor="w",
+            padx=20,
+            pady=(20, 10)
+        )
 
-        # =========================
+        # =====================================
         # Report Textbox
-        # =========================
-        self.box = ctk.CTkTextbox(
-            report_card,
-            font=("Consolas", 15),
+        # =====================================
+        self.report_box = ctk.CTkTextbox(
+            self.report_card,
+            font=("Consolas", 14),
             corner_radius=12
         )
 
-        self.box.pack(
+        self.report_box.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=(0, 20)
         )
 
-        # Generate Report
-        self.generate_report()
+    # =====================================
+    # Load Statistics
+    # =====================================
+    def load_statistics(self):
 
-    # =========================
-    # Statistics
-    # =========================
-    def get_statistics(self):
+        stats = ReportService.get_statistics()
 
-        cursor.execute("SELECT * FROM products")
+        cards = [
+            (
+                "Total Products",
+                stats["total_products"],
+                PRIMARY_COLOR
+            ),
+            (
+                "Stock Quantity",
+                stats["total_quantity"],
+                SUCCESS_COLOR
+            ),
+            (
+                "Inventory Value",
+                f"{stats['inventory_value']:.2f} EGP",
+                WARNING_COLOR
+            ),
+            (
+                "Low Stock",
+                stats["low_stock"],
+                DANGER_COLOR
+            )
+        ]
 
-        products = cursor.fetchall()
+        for index, card in enumerate(cards):
 
-        total_products = len(products)
+            self.create_card(
+                title=card[0],
+                value=card[1],
+                color=card[2],
+                column=index
+            )
 
-        total_quantity = sum(
-            int(product[5]) for product in products
-        )
-
-        inventory_value = sum(
-            float(product[3]) * int(product[5])
-            for product in products
-        )
-
-        low_stock = len([
-            product for product in products
-            if int(product[5]) <= LOW_STOCK_LIMIT
-        ])
-
-        return {
-            "total_products": total_products,
-            "total_quantity": total_quantity,
-            "inventory_value": inventory_value,
-            "low_stock": low_stock
-        }
-
-    # =========================
-    # Create Statistics Card
-    # =========================
+    # =====================================
+    # Statistics Card
+    # =====================================
     def create_card(
         self,
-        parent,
         title,
         value,
         color,
@@ -177,8 +175,7 @@ class ReportsPage:
     ):
 
         card = ctk.CTkFrame(
-            parent,
-            width=250,
+            self.cards_frame,
             height=140,
             corner_radius=FRAME_RADIUS,
             fg_color=CARD_COLOR
@@ -191,6 +188,9 @@ class ReportsPage:
             sticky="nsew"
         )
 
+        # =====================================
+        # Value
+        # =====================================
         value_label = ctk.CTkLabel(
             card,
             text=str(value),
@@ -198,8 +198,13 @@ class ReportsPage:
             text_color=color
         )
 
-        value_label.pack(pady=(30, 5))
+        value_label.pack(
+            pady=(30, 5)
+        )
 
+        # =====================================
+        # Title
+        # =====================================
         title_label = ctk.CTkLabel(
             card,
             text=title,
@@ -209,61 +214,62 @@ class ReportsPage:
 
         title_label.pack()
 
-    # =========================
+    # =====================================
     # Generate Report
-    # =========================
+    # =====================================
     def generate_report(self):
 
-        self.box.delete("1.0", "end")
+        self.report_box.delete(
+            "1.0",
+            "end"
+        )
 
-        cursor.execute("""
-        SELECT * FROM products
-        ORDER BY quantity ASC
-        """)
-
-        products = cursor.fetchall()
+        products = ReportService.get_inventory_report()
 
         if not products:
 
-            self.box.insert(
+            self.report_box.insert(
                 "end",
                 "No products available..."
             )
 
             return
 
-        # Header
-        self.box.insert(
+        # =====================================
+        # Table Header
+        # =====================================
+        self.report_box.insert(
             "end",
-            f"""
-{'ID':<5}
-{'NAME':<30}
-{'BUY':<12}
-{'SELL':<12}
-{'QTY':<10}
-
-{'='*80}
-"""
+            f"{'ID':<5}"
+            f"{'NAME':<30}"
+            f"{'BUY':<12}"
+            f"{'SELL':<12}"
+            f"{'QTY':<10}"
+            f"{'STATUS':<15}\n"
         )
 
+        self.report_box.insert(
+            "end",
+            "=" * 90 + "\n"
+        )
+
+        # =====================================
         # Products
+        # =====================================
         for product in products:
 
-            stock_alert = ""
+            status = "GOOD"
 
-            if int(product[5]) <= LOW_STOCK_LIMIT:
-                stock_alert = " ⚠ LOW STOCK"
+            if product["quantity"] <= LOW_STOCK_LIMIT:
 
-            self.box.insert(
+                status = "LOW STOCK"
+
+            self.report_box.insert(
                 "end",
-                f"""
-{product[0]:<5}
-{product[1]:<30}
-{product[3]:<12}
-{product[4]:<12}
-{product[5]:<10}
-{stock_alert}
-
-{'-'*80}
-"""
+                f"{product['id']:<5}"
+                f"{product['name']:<30}"
+                f"{product['buy_price']:<12}"
+                f"{product['sell_price']:<12}"
+                f"{product['quantity']:<10}"
+                f"{status:<15}\n"
             )
