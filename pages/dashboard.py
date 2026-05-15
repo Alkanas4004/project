@@ -2,301 +2,505 @@
 
 import customtkinter as ctk
 
-from database import conn, cursor
+from services.product_service import ProductService
+
 from config import *
 
 
-class ProductsPage:
+class ProductsPage(ctk.CTkFrame):
 
     def __init__(self, parent):
 
-        # =========================
-        # Main Container
-        # =========================
-        self.frame = ctk.CTkFrame(
-            parent,
-            fg_color=BACKGROUND_COLOR
-        )
+        super().__init__(parent)
 
-        self.frame.pack(
+        self.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=20
         )
 
-        # =========================
+        self.build_ui()
+
+        self.load_products()
+
+    # =====================================
+    # UI
+    # =====================================
+    def build_ui(self):
+
+        self.configure(
+            fg_color=BACKGROUND_COLOR
+        )
+
+        # =====================================
         # Page Title
-        # =========================
-        title = ctk.CTkLabel(
-            self.frame,
+        # =====================================
+        self.title = ctk.CTkLabel(
+            self,
             text="Products Management",
             font=TITLE_FONT,
             text_color=TEXT_COLOR
         )
 
-        title.pack(anchor="w", pady=(10, 25))
+        self.title.pack(
+            anchor="w",
+            pady=(10, 25)
+        )
 
-        # =========================
+        # =====================================
+        # Search Bar
+        # =====================================
+        self.search_entry = ctk.CTkEntry(
+            self,
+            placeholder_text="Search Product...",
+            height=45,
+            font=TEXT_FONT
+        )
+
+        self.search_entry.pack(
+            fill="x",
+            pady=(0, 20)
+        )
+
+        self.search_entry.bind(
+            "<KeyRelease>",
+            lambda event: self.search_products()
+        )
+
+        # =====================================
         # Form Card
-        # =========================
-        form_frame = ctk.CTkFrame(
-            self.frame,
+        # =====================================
+        self.form_card = ctk.CTkFrame(
+            self,
             fg_color=CARD_COLOR,
             corner_radius=FRAME_RADIUS
         )
 
-        form_frame.pack(fill="x", pady=(0, 20))
+        self.form_card.pack(
+            fill="x",
+            pady=(0, 20)
+        )
 
-        # =========================
-        # Form Inputs
-        # =========================
-        inputs_frame = ctk.CTkFrame(
-            form_frame,
+        # =====================================
+        # Inputs Frame
+        # =====================================
+        self.inputs_frame = ctk.CTkFrame(
+            self.form_card,
             fg_color="transparent"
         )
 
-        inputs_frame.pack(padx=20, pady=20)
-
-        self.name = ctk.CTkEntry(
-            inputs_frame,
-            placeholder_text="Product Name",
-            width=260,
-            height=ENTRY_HEIGHT,
-            corner_radius=BUTTON_RADIUS,
-            font=TEXT_FONT
+        self.inputs_frame.pack(
+            padx=20,
+            pady=20
         )
 
-        self.name.grid(row=0, column=0, padx=10, pady=10)
-
-        self.barcode = ctk.CTkEntry(
-            inputs_frame,
-            placeholder_text="Barcode",
-            width=260,
-            height=ENTRY_HEIGHT,
-            corner_radius=BUTTON_RADIUS,
-            font=TEXT_FONT
+        # =====================================
+        # Entries
+        # =====================================
+        self.name_entry = self.create_entry(
+            "Product Name",
+            0,
+            0
         )
 
-        self.barcode.grid(row=0, column=1, padx=10, pady=10)
-
-        self.buy = ctk.CTkEntry(
-            inputs_frame,
-            placeholder_text="Buy Price",
-            width=260,
-            height=ENTRY_HEIGHT,
-            corner_radius=BUTTON_RADIUS,
-            font=TEXT_FONT
+        self.barcode_entry = self.create_entry(
+            "Barcode",
+            0,
+            1
         )
 
-        self.buy.grid(row=1, column=0, padx=10, pady=10)
-
-        self.sell = ctk.CTkEntry(
-            inputs_frame,
-            placeholder_text="Sell Price",
-            width=260,
-            height=ENTRY_HEIGHT,
-            corner_radius=BUTTON_RADIUS,
-            font=TEXT_FONT
+        self.buy_entry = self.create_entry(
+            "Buy Price",
+            1,
+            0
         )
 
-        self.sell.grid(row=1, column=1, padx=10, pady=10)
-
-        self.qty = ctk.CTkEntry(
-            inputs_frame,
-            placeholder_text="Quantity",
-            width=260,
-            height=ENTRY_HEIGHT,
-            corner_radius=BUTTON_RADIUS,
-            font=TEXT_FONT
+        self.sell_entry = self.create_entry(
+            "Sell Price",
+            1,
+            1
         )
 
-        self.qty.grid(row=2, column=0, padx=10, pady=10)
+        self.qty_entry = self.create_entry(
+            "Quantity",
+            2,
+            0
+        )
 
-        # =========================
+        # =====================================
         # Save Button
-        # =========================
-        save_btn = ctk.CTkButton(
-            inputs_frame,
+        # =====================================
+        self.save_button = ctk.CTkButton(
+            self.inputs_frame,
             text="Save Product",
             width=260,
             height=50,
             corner_radius=BUTTON_RADIUS,
             fg_color=PRIMARY_COLOR,
-            hover_color="#1D4ED8",
+            hover_color=PRIMARY_HOVER,
             font=BUTTON_FONT,
             command=self.save_product
         )
 
-        save_btn.grid(row=2, column=1, padx=10, pady=10)
-
-        # =========================
-        # Status Label
-        # =========================
-        self.status = ctk.CTkLabel(
-            form_frame,
-            text="",
-            font=SMALL_FONT,
-            text_color=SUCCESS_COLOR
+        self.save_button.grid(
+            row=2,
+            column=1,
+            padx=10,
+            pady=10
         )
 
-        self.status.pack(pady=(0, 15))
+        # =====================================
+        # Status Label
+        # =====================================
+        self.status_label = ctk.CTkLabel(
+            self.form_card,
+            text="",
+            font=SMALL_FONT
+        )
 
-        # =========================
-        # Products List Card
-        # =========================
-        products_frame = ctk.CTkFrame(
-            self.frame,
+        self.status_label.pack(
+            pady=(0, 15)
+        )
+
+        # =====================================
+        # Products Card
+        # =====================================
+        self.products_card = ctk.CTkFrame(
+            self,
             fg_color=CARD_COLOR,
             corner_radius=FRAME_RADIUS
         )
 
-        products_frame.pack(
+        self.products_card.pack(
             fill="both",
             expand=True
         )
 
+        # =====================================
         # Products Title
-        products_title = ctk.CTkLabel(
-            products_frame,
+        # =====================================
+        self.products_title = ctk.CTkLabel(
+            self.products_card,
             text="Products List",
             font=SUBTITLE_FONT,
             text_color=TEXT_COLOR
         )
 
-        products_title.pack(anchor="w", padx=20, pady=15)
+        self.products_title.pack(
+            anchor="w",
+            padx=20,
+            pady=15
+        )
 
-        # Products Textbox
-        self.box = ctk.CTkTextbox(
-            products_frame,
+        # =====================================
+        # Products Box
+        # =====================================
+        self.products_box = ctk.CTkTextbox(
+            self.products_card,
             font=("Consolas", 15),
             corner_radius=12
         )
 
-        self.box.pack(
+        self.products_box.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=(0, 20)
         )
 
-        # Load Products
-        self.load_products()
+    # =====================================
+    # Create Entry
+    # =====================================
+    def create_entry(
+        self,
+        placeholder,
+        row,
+        column
+    ):
 
-    # =========================
+        entry = ctk.CTkEntry(
+            self.inputs_frame,
+            placeholder_text=placeholder,
+            width=260,
+            height=ENTRY_HEIGHT,
+            corner_radius=BUTTON_RADIUS,
+            font=TEXT_FONT
+        )
+
+        entry.grid(
+            row=row,
+            column=column,
+            padx=10,
+            pady=10
+        )
+
+        return entry
+
+    # =====================================
     # Save Product
-    # =========================
+    # =====================================
     def save_product(self):
 
-        name = self.name.get().strip()
-        barcode = self.barcode.get().strip()
-        buy = self.buy.get().strip()
-        sell = self.sell.get().strip()
-        qty = self.qty.get().strip()
+        name = self.name_entry.get().strip()
 
+        barcode = self.barcode_entry.get().strip()
+
+        buy_price = self.buy_entry.get().strip()
+
+        sell_price = self.sell_entry.get().strip()
+
+        quantity = self.qty_entry.get().strip()
+
+        # =====================================
         # Validation
-        if not all([name, barcode, buy, sell, qty]):
+        # =====================================
+        if not all([
+            name,
+            barcode,
+            buy_price,
+            sell_price,
+            quantity
+        ]):
 
-            self.status.configure(
-                text="Please fill all fields",
-                text_color=DANGER_COLOR
+            self.show_message(
+                "Please fill all fields",
+                DANGER_COLOR
             )
 
             return
 
         try:
 
-            cursor.execute(
-                """
-                INSERT INTO products(
-                    name,
-                    barcode,
-                    buy_price,
-                    sell_price,
-                    quantity
-                )
-                VALUES(?,?,?,?,?)
-                """,
-                (
-                    name,
-                    barcode,
-                    float(buy),
-                    float(sell),
-                    int(qty)
-                )
+            buy_price = float(
+                buy_price
             )
 
-            conn.commit()
+            sell_price = float(
+                sell_price
+            )
 
-            self.status.configure(
-                text="✅ Product added successfully",
-                text_color=SUCCESS_COLOR
+            quantity = int(
+                quantity
+            )
+
+        except ValueError:
+
+            self.show_message(
+                "Invalid numeric values",
+                DANGER_COLOR
+            )
+
+            return
+
+        # =====================================
+        # Disable Button
+        # =====================================
+        self.save_button.configure(
+            state="disabled",
+            text="Saving..."
+        )
+
+        # =====================================
+        # Save Product
+        # =====================================
+        success, message = ProductService.add_product(
+            name=name,
+            barcode=barcode,
+            buy_price=buy_price,
+            sell_price=sell_price,
+            quantity=quantity
+        )
+
+        # =====================================
+        # Success
+        # =====================================
+        if success:
+
+            self.show_message(
+                message,
+                SUCCESS_COLOR
             )
 
             self.clear_fields()
 
             self.load_products()
 
-        except Exception as e:
+        # =====================================
+        # Failed
+        # =====================================
+        else:
 
-            self.status.configure(
-                text=f"❌ {e}",
-                text_color=DANGER_COLOR
+            self.show_message(
+                message,
+                DANGER_COLOR
             )
 
-    # =========================
+        # =====================================
+        # Enable Button Again
+        # =====================================
+        self.save_button.configure(
+            state="normal",
+            text="Save Product"
+        )
+
+    # =====================================
     # Load Products
-    # =========================
+    # =====================================
     def load_products(self):
 
-        self.box.delete("1.0", "end")
+        self.products_box.delete(
+            "1.0",
+            "end"
+        )
 
-        cursor.execute("""
-        SELECT * FROM products
-        ORDER BY id DESC
-        """)
-
-        products = cursor.fetchall()
+        products = ProductService.get_products()
 
         if not products:
 
-            self.box.insert(
+            self.products_box.insert(
                 "end",
                 "No products found..."
             )
 
             return
 
-        self.box.insert(
+        # =====================================
+        # Header
+        # =====================================
+        self.products_box.insert(
             "end",
-            f"{'ID':<5} {'NAME':<25} {'PRICE':<15} {'QTY':<10}\n"
+            f"{'ID':<5}"
+            f"{'NAME':<30}"
+            f"{'PRICE':<15}"
+            f"{'QTY':<10}\n"
         )
 
-        self.box.insert(
+        self.products_box.insert(
             "end",
-            "=" * 70 + "\n"
+            "=" * 80 + "\n"
         )
+
+        # =====================================
+        # Products
+        # =====================================
+        for product in products:
+
+            stock_status = "LOW"
+
+            if product["quantity"] > LOW_STOCK_LIMIT:
+
+                stock_status = "GOOD"
+
+            self.products_box.insert(
+                "end",
+                f"{product['id']:<5}"
+                f"{product['name']:<30}"
+                f"{product['sell_price']:<15} EGP"
+                f"{product['quantity']:<10}"
+                f"{stock_status:<10}\n"
+            )
+
+    # =====================================
+    # Search Products
+    # =====================================
+    def search_products(self):
+
+        keyword = self.search_entry.get().lower()
+
+        self.products_box.delete(
+            "1.0",
+            "end"
+        )
+
+        products = ProductService.get_products()
+
+        filtered_products = []
 
         for product in products:
 
-            self.box.insert(
+            if (
+                keyword in product["name"].lower()
+                or
+                keyword in product["barcode"].lower()
+            ):
+
+                filtered_products.append(
+                    product
+                )
+
+        if not filtered_products:
+
+            self.products_box.insert(
                 "end",
-                f"""
-{product[0]:<5}
-{product[1]:<25}
-{product[4]:<15} EGP
-{product[5]:<10}
---------------------------------------------
-"""
+                "No matching products..."
             )
 
-    # =========================
+            return
+
+        self.products_box.insert(
+            "end",
+            f"{'ID':<5}"
+            f"{'NAME':<30}"
+            f"{'PRICE':<15}"
+            f"{'QTY':<10}\n"
+        )
+
+        self.products_box.insert(
+            "end",
+            "=" * 80 + "\n"
+        )
+
+        for product in filtered_products:
+
+            self.products_box.insert(
+                "end",
+                f"{product['id']:<5}"
+                f"{product['name']:<30}"
+                f"{product['sell_price']:<15} EGP"
+                f"{product['quantity']:<10}\n"
+            )
+
+    # =====================================
     # Clear Fields
-    # =========================
+    # =====================================
     def clear_fields(self):
 
-        self.name.delete(0, "end")
-        self.barcode.delete(0, "end")
-        self.buy.delete(0, "end")
-        self.sell.delete(0, "end")
-        self.qty.delete(0, "end")
+        self.name_entry.delete(
+            0,
+            "end"
+        )
+
+        self.barcode_entry.delete(
+            0,
+            "end"
+        )
+
+        self.buy_entry.delete(
+            0,
+            "end"
+        )
+
+        self.sell_entry.delete(
+            0,
+            "end"
+        )
+
+        self.qty_entry.delete(
+            0,
+            "end"
+        )
+
+    # =====================================
+    # Show Message
+    # =====================================
+    def show_message(
+        self,
+        message,
+        color
+    ):
+
+        self.status_label.configure(
+            text=message,
+            text_color=color
+        )
