@@ -1,62 +1,72 @@
 import customtkinter as ctk
-from pages.products import ProductsPage
-from pages.cashier import CashierPage
-from pages.reports import ReportsPage
+from database import conn, cursor
 
-class Dashboard:
+class ProductsPage:
 
-    def __init__(self, app):
+    def __init__(self, parent):
 
-        self.sidebar = ctk.CTkFrame(app, width=250)
-        self.sidebar.pack(side="left", fill="y")
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="both", expand=True)
 
-        self.content = ctk.CTkFrame(app)
-        self.content.pack(side="right", fill="both", expand=True)
+        self.name = ctk.CTkEntry(frame, placeholder_text="Product Name")
+        self.name.pack(pady=5)
 
-        title = ctk.CTkLabel(
-            self.sidebar,
-            text="SuperMarket POS",
-            font=("Arial", 30, "bold")
+        self.barcode = ctk.CTkEntry(frame, placeholder_text="Barcode")
+        self.barcode.pack(pady=5)
+
+        self.buy = ctk.CTkEntry(frame, placeholder_text="Buy Price")
+        self.buy.pack(pady=5)
+
+        self.sell = ctk.CTkEntry(frame, placeholder_text="Sell Price")
+        self.sell.pack(pady=5)
+
+        self.qty = ctk.CTkEntry(frame, placeholder_text="Quantity")
+        self.qty.pack(pady=5)
+
+        btn = ctk.CTkButton(
+            frame,
+            text="Save Product",
+            command=self.save
         )
 
-        title.pack(pady=30)
+        btn.pack(pady=10)
 
-        buttons = [
-            ("Products", self.products),
-            ("Cashier", self.cashier),
-            ("Reports", self.reports)
-        ]
+        self.box = ctk.CTkTextbox(frame, width=1000, height=400)
+        self.box.pack(pady=20)
 
-        for text, cmd in buttons:
+        self.load()
 
-            btn = ctk.CTkButton(
-                self.sidebar,
-                text=text,
-                command=cmd,
-                height=45
+    def save(self):
+
+        cursor.execute(
+            '''
+            INSERT INTO products(
+                name,barcode,buy_price,sell_price,quantity
             )
+            VALUES(?,?,?,?,?)
+            ''',
+            (
+                self.name.get(),
+                self.barcode.get(),
+                self.buy.get(),
+                self.sell.get(),
+                self.qty.get()
+            )
+        )
 
-            btn.pack(fill="x", padx=20, pady=10)
+        conn.commit()
 
-    def clear(self):
+        self.load()
 
-        for widget in self.content.winfo_children():
-            widget.destroy()
+    def load(self):
 
-    def products(self):
+        self.box.delete("1.0", "end")
 
-        self.clear()
+        cursor.execute("SELECT * FROM products")
 
-        ProductsPage(self.content)
+        for product in cursor.fetchall():
 
-    def cashier(self):
-
-        self.clear()
-
-        CashierPage(self.content)
-
-    def reports(self):
-
-        self.clear()
-
-        ReportsPage(self.content)
+            self.box.insert(
+                "end",
+                f"{product[1]} | {product[4]} EGP | Qty:{product[5]}\n"
+            )
