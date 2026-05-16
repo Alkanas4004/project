@@ -1,9 +1,9 @@
 # pages/products.py
 
 import customtkinter as ctk
+from tkinter import ttk, messagebox
 
 from services.product_service import ProductService
-
 from config import *
 
 
@@ -12,6 +12,8 @@ class ProductsPage(ctk.CTkFrame):
     def __init__(self, parent):
 
         super().__init__(parent)
+
+        self.selected_product_id = None
 
         self.pack(
             fill="both",
@@ -49,23 +51,50 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
-        # Search Bar
+        # Search Frame
         # =====================================
-        self.search_entry = ctk.CTkEntry(
+        self.search_frame = ctk.CTkFrame(
             self,
+            fg_color="transparent"
+        )
+
+        self.search_frame.pack(
+            fill="x",
+            pady=(0, 20)
+        )
+
+        # Search Entry
+        self.search_entry = ctk.CTkEntry(
+            self.search_frame,
             placeholder_text="Search Product...",
             height=45,
             font=TEXT_FONT
         )
 
         self.search_entry.pack(
+            side="left",
             fill="x",
-            pady=(0, 20)
+            expand=True,
+            padx=(0, 10)
         )
 
         self.search_entry.bind(
             "<KeyRelease>",
             lambda event: self.search_products()
+        )
+
+        # Refresh Button
+        self.refresh_button = ctk.CTkButton(
+            self.search_frame,
+            text="Refresh",
+            width=150,
+            fg_color=SUCCESS_COLOR,
+            hover_color="#16A34A",
+            command=self.load_products
+        )
+
+        self.refresh_button.pack(
+            side="right"
         )
 
         # =====================================
@@ -82,9 +111,7 @@ class ProductsPage(ctk.CTkFrame):
             pady=(0, 20)
         )
 
-        # =====================================
         # Inputs Frame
-        # =====================================
         self.inputs_frame = ctk.CTkFrame(
             self.form_card,
             fg_color="transparent"
@@ -134,7 +161,7 @@ class ProductsPage(ctk.CTkFrame):
         self.save_button = ctk.CTkButton(
             self.inputs_frame,
             text="Save Product",
-            width=260,
+            width=180,
             height=50,
             corner_radius=BUTTON_RADIUS,
             fg_color=PRIMARY_COLOR,
@@ -146,8 +173,32 @@ class ProductsPage(ctk.CTkFrame):
         self.save_button.grid(
             row=2,
             column=1,
-            padx=10,
-            pady=10
+            padx=(10, 5),
+            pady=10,
+            sticky="w"
+        )
+
+        # =====================================
+        # Delete Button
+        # =====================================
+        self.delete_button = ctk.CTkButton(
+            self.inputs_frame,
+            text="Delete Product",
+            width=180,
+            height=50,
+            corner_radius=BUTTON_RADIUS,
+            fg_color=DANGER_COLOR,
+            hover_color="#DC2626",
+            font=BUTTON_FONT,
+            command=self.delete_product
+        )
+
+        self.delete_button.grid(
+            row=3,
+            column=1,
+            padx=(10, 5),
+            pady=10,
+            sticky="w"
         )
 
         # =====================================
@@ -194,19 +245,69 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
-        # Products Box
+        # Table Style
         # =====================================
-        self.products_box = ctk.CTkTextbox(
-            self.products_card,
-            font=("Consolas", 15),
-            corner_radius=12
+        style = ttk.Style()
+
+        style.theme_use("default")
+
+        style.configure(
+            "Treeview",
+            background="#1E293B",
+            foreground="white",
+            rowheight=35,
+            fieldbackground="#1E293B",
+            borderwidth=0,
+            font=("Segoe UI", 12)
         )
 
-        self.products_box.pack(
+        style.configure(
+            "Treeview.Heading",
+            font=("Segoe UI", 12, "bold")
+        )
+
+        # =====================================
+        # Products Table
+        # =====================================
+        columns = (
+            "ID",
+            "Name",
+            "Barcode",
+            "Buy Price",
+            "Sell Price",
+            "Quantity"
+        )
+
+        self.products_table = ttk.Treeview(
+            self.products_card,
+            columns=columns,
+            show="headings",
+            height=15
+        )
+
+        for col in columns:
+
+            self.products_table.heading(
+                col,
+                text=col
+            )
+
+            self.products_table.column(
+                col,
+                anchor="center",
+                width=140
+            )
+
+        self.products_table.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=(0, 20)
+        )
+
+        self.products_table.bind(
+            "<Double-1>",
+            self.select_product
         )
 
     # =====================================
@@ -243,18 +344,11 @@ class ProductsPage(ctk.CTkFrame):
     def save_product(self):
 
         name = self.name_entry.get().strip()
-
         barcode = self.barcode_entry.get().strip()
-
         buy_price = self.buy_entry.get().strip()
-
         sell_price = self.sell_entry.get().strip()
-
         quantity = self.qty_entry.get().strip()
 
-        # =====================================
-        # Validation
-        # =====================================
         if not all([
             name,
             barcode,
@@ -272,17 +366,9 @@ class ProductsPage(ctk.CTkFrame):
 
         try:
 
-            buy_price = float(
-                buy_price
-            )
-
-            sell_price = float(
-                sell_price
-            )
-
-            quantity = int(
-                quantity
-            )
+            buy_price = float(buy_price)
+            sell_price = float(sell_price)
+            quantity = int(quantity)
 
         except ValueError:
 
@@ -293,17 +379,11 @@ class ProductsPage(ctk.CTkFrame):
 
             return
 
-        # =====================================
-        # Disable Button
-        # =====================================
         self.save_button.configure(
             state="disabled",
             text="Saving..."
         )
 
-        # =====================================
-        # Save Product
-        # =====================================
         success, message = ProductService.add_product(
             name=name,
             barcode=barcode,
@@ -312,9 +392,6 @@ class ProductsPage(ctk.CTkFrame):
             quantity=quantity
         )
 
-        # =====================================
-        # Success
-        # =====================================
         if success:
 
             self.show_message(
@@ -326,9 +403,6 @@ class ProductsPage(ctk.CTkFrame):
 
             self.load_products()
 
-        # =====================================
-        # Failed
-        # =====================================
         else:
 
             self.show_message(
@@ -336,9 +410,6 @@ class ProductsPage(ctk.CTkFrame):
                 DANGER_COLOR
             )
 
-        # =====================================
-        # Enable Button Again
-        # =====================================
         self.save_button.configure(
             state="normal",
             text="Save Product"
@@ -349,56 +420,28 @@ class ProductsPage(ctk.CTkFrame):
     # =====================================
     def load_products(self):
 
-        self.products_box.delete(
-            "1.0",
-            "end"
-        )
+        for row in self.products_table.get_children():
+
+            self.products_table.delete(row)
 
         products = ProductService.get_products()
 
         if not products:
-
-            self.products_box.insert(
-                "end",
-                "No products found..."
-            )
-
             return
 
-        # =====================================
-        # Header
-        # =====================================
-        self.products_box.insert(
-            "end",
-            f"{'ID':<5}"
-            f"{'NAME':<30}"
-            f"{'PRICE':<15}"
-            f"{'QTY':<10}\n"
-        )
-
-        self.products_box.insert(
-            "end",
-            "=" * 80 + "\n"
-        )
-
-        # =====================================
-        # Products
-        # =====================================
         for product in products:
 
-            stock_status = "LOW"
-
-            if product["quantity"] > LOW_STOCK_LIMIT:
-
-                stock_status = "GOOD"
-
-            self.products_box.insert(
+            self.products_table.insert(
+                "",
                 "end",
-                f"{product['id']:<5}"
-                f"{product['name']:<30}"
-                f"{product['sell_price']:<15} EGP"
-                f"{product['quantity']:<10}"
-                f"{stock_status:<10}\n"
+                values=(
+                    product["id"],
+                    product["name"],
+                    product["barcode"],
+                    product["buy_price"],
+                    product["sell_price"],
+                    product["quantity"]
+                )
             )
 
     # =====================================
@@ -408,57 +451,101 @@ class ProductsPage(ctk.CTkFrame):
 
         keyword = self.search_entry.get().lower()
 
-        self.products_box.delete(
-            "1.0",
-            "end"
-        )
+        for row in self.products_table.get_children():
+
+            self.products_table.delete(row)
 
         products = ProductService.get_products()
-
-        filtered_products = []
 
         for product in products:
 
             if (
                 keyword in product["name"].lower()
-                or
-                keyword in product["barcode"].lower()
+                or keyword in product["barcode"].lower()
             ):
 
-                filtered_products.append(
-                    product
+                self.products_table.insert(
+                    "",
+                    "end",
+                    values=(
+                        product["id"],
+                        product["name"],
+                        product["barcode"],
+                        product["buy_price"],
+                        product["sell_price"],
+                        product["quantity"]
+                    )
                 )
 
-        if not filtered_products:
+    # =====================================
+    # Select Product
+    # =====================================
+    def select_product(self, event):
 
-            self.products_box.insert(
-                "end",
-                "No matching products..."
+        selected = self.products_table.focus()
+
+        values = self.products_table.item(
+            selected,
+            "values"
+        )
+
+        if not values:
+            return
+
+        self.selected_product_id = values[0]
+
+        self.clear_fields()
+
+        self.name_entry.insert(0, values[1])
+        self.barcode_entry.insert(0, values[2])
+        self.buy_entry.insert(0, values[3])
+        self.sell_entry.insert(0, values[4])
+        self.qty_entry.insert(0, values[5])
+
+    # =====================================
+    # Delete Product
+    # =====================================
+    def delete_product(self):
+
+        if not self.selected_product_id:
+
+            self.show_message(
+                "Select product first",
+                DANGER_COLOR
             )
 
             return
 
-        self.products_box.insert(
-            "end",
-            f"{'ID':<5}"
-            f"{'NAME':<30}"
-            f"{'PRICE':<15}"
-            f"{'QTY':<10}\n"
+        confirm = messagebox.askyesno(
+            "Delete Product",
+            "Are you sure you want to delete this product?"
         )
 
-        self.products_box.insert(
-            "end",
-            "=" * 80 + "\n"
+        if not confirm:
+            return
+
+        success, message = ProductService.delete_product(
+            self.selected_product_id
         )
 
-        for product in filtered_products:
+        if success:
 
-            self.products_box.insert(
-                "end",
-                f"{product['id']:<5}"
-                f"{product['name']:<30}"
-                f"{product['sell_price']:<15} EGP"
-                f"{product['quantity']:<10}\n"
+            self.show_message(
+                message,
+                SUCCESS_COLOR
+            )
+
+            self.clear_fields()
+
+            self.load_products()
+
+            self.selected_product_id = None
+
+        else:
+
+            self.show_message(
+                message,
+                DANGER_COLOR
             )
 
     # =====================================
@@ -466,30 +553,11 @@ class ProductsPage(ctk.CTkFrame):
     # =====================================
     def clear_fields(self):
 
-        self.name_entry.delete(
-            0,
-            "end"
-        )
-
-        self.barcode_entry.delete(
-            0,
-            "end"
-        )
-
-        self.buy_entry.delete(
-            0,
-            "end"
-        )
-
-        self.sell_entry.delete(
-            0,
-            "end"
-        )
-
-        self.qty_entry.delete(
-            0,
-            "end"
-        )
+        self.name_entry.delete(0, "end")
+        self.barcode_entry.delete(0, "end")
+        self.buy_entry.delete(0, "end")
+        self.sell_entry.delete(0, "end")
+        self.qty_entry.delete(0, "end")
 
     # =====================================
     # Show Message
