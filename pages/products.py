@@ -1,4 +1,7 @@
-# pages/products.py
+# =====================================
+# UPDATED PRODUCTS PAGE (FULL VERSION)
+# Add / Search / Refresh / Select / Update / Delete
+# =====================================
 
 import customtkinter as ctk
 
@@ -16,14 +19,14 @@ class ProductsPage(ctk.CTkFrame):
 
         super().__init__(parent)
 
+        self.selected_product_id = None
+
         self.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=20
         )
-
-        self.selected_product_id = None
 
         self.build_ui()
 
@@ -68,7 +71,7 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
-        # Inputs Container
+        # Inputs Frame
         # =====================================
         self.inputs_frame = ctk.CTkFrame(
             self.form_card,
@@ -81,7 +84,7 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
-        # Product Name
+        # Entries
         # =====================================
         self.name_entry = self.create_entry(
             "Product Name",
@@ -89,36 +92,24 @@ class ProductsPage(ctk.CTkFrame):
             0
         )
 
-        # =====================================
-        # Barcode
-        # =====================================
         self.barcode_entry = self.create_entry(
             "Barcode",
             0,
             1
         )
 
-        # =====================================
-        # Buy Price
-        # =====================================
         self.buy_entry = self.create_entry(
             "Buy Price",
             1,
             0
         )
 
-        # =====================================
-        # Sell Price
-        # =====================================
         self.sell_entry = self.create_entry(
             "Sell Price",
             1,
             1
         )
 
-        # =====================================
-        # Quantity
-        # =====================================
         self.qty_entry = self.create_entry(
             "Quantity",
             2,
@@ -149,6 +140,28 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
+        # Update Button
+        # =====================================
+        self.update_button = ctk.CTkButton(
+            self.inputs_frame,
+            text="Update Product",
+            width=180,
+            height=50,
+            corner_radius=BUTTON_RADIUS,
+            fg_color=WARNING_COLOR,
+            hover_color="#D97706",
+            font=BUTTON_FONT,
+            command=self.update_product
+        )
+
+        self.update_button.grid(
+            row=3,
+            column=0,
+            padx=10,
+            pady=10
+        )
+
+        # =====================================
         # Delete Button
         # =====================================
         self.delete_button = ctk.CTkButton(
@@ -164,9 +177,9 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         self.delete_button.grid(
-            row=2,
+            row=3,
             column=1,
-            padx=(200, 10),
+            padx=10,
             pady=10,
             sticky="w"
         )
@@ -185,7 +198,7 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
-        # Products List Card
+        # Products Card
         # =====================================
         self.products_card = ctk.CTkFrame(
             self,
@@ -253,7 +266,9 @@ class ProductsPage(ctk.CTkFrame):
             command=self.search_products
         )
 
-        self.search_button.pack(side="left")
+        self.search_button.pack(
+            side="left"
+        )
 
         # =====================================
         # Refresh Button
@@ -309,7 +324,7 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
-        # Products Table
+        # Table Columns
         # =====================================
         columns = (
             "ID",
@@ -327,9 +342,6 @@ class ProductsPage(ctk.CTkFrame):
             height=15
         )
 
-        # =====================================
-        # Table Headings
-        # =====================================
         for col in columns:
 
             self.products_table.heading(
@@ -349,7 +361,7 @@ class ProductsPage(ctk.CTkFrame):
         )
 
         # =====================================
-        # Double Click Event
+        # Select Product
         # =====================================
         self.products_table.bind(
             "<Double-1>",
@@ -357,7 +369,7 @@ class ProductsPage(ctk.CTkFrame):
         )
 
     # =====================================
-    # Create Entry Helper
+    # Entry Creator
     # =====================================
     def create_entry(self, placeholder, row, column):
 
@@ -385,25 +397,12 @@ class ProductsPage(ctk.CTkFrame):
     def save_product(self):
 
         name = self.name_entry.get().strip()
-
         barcode = self.barcode_entry.get().strip()
-
         buy_price = self.buy_entry.get().strip()
-
         sell_price = self.sell_entry.get().strip()
-
         quantity = self.qty_entry.get().strip()
 
-        # =====================================
-        # Validation
-        # =====================================
-        if not all([
-            name,
-            barcode,
-            buy_price,
-            sell_price,
-            quantity
-        ]):
+        if not all([name, barcode, buy_price, sell_price, quantity]):
 
             self.show_message(
                 "Please fill all fields",
@@ -415,9 +414,7 @@ class ProductsPage(ctk.CTkFrame):
         try:
 
             buy_price = float(buy_price)
-
             sell_price = float(sell_price)
-
             quantity = int(quantity)
 
         except ValueError:
@@ -429,15 +426,12 @@ class ProductsPage(ctk.CTkFrame):
 
             return
 
-        # =====================================
-        # Add Product
-        # =====================================
         success, message = ProductService.add_product(
-            name=name,
-            barcode=barcode,
-            buy_price=buy_price,
-            sell_price=sell_price,
-            quantity=quantity
+            name,
+            barcode,
+            buy_price,
+            sell_price,
+            quantity
         )
 
         if success:
@@ -459,21 +453,56 @@ class ProductsPage(ctk.CTkFrame):
             )
 
     # =====================================
+    # Update Product
+    # =====================================
+    def update_product(self):
+
+        if not self.selected_product_id:
+
+            self.show_message(
+                "Select product first",
+                DANGER_COLOR
+            )
+
+            return
+
+        success, message = ProductService.update_product(
+            self.selected_product_id,
+            self.name_entry.get().strip(),
+            self.barcode_entry.get().strip(),
+            float(self.buy_entry.get()),
+            float(self.sell_entry.get()),
+            int(self.qty_entry.get())
+        )
+
+        if success:
+
+            self.show_message(
+                message,
+                SUCCESS_COLOR
+            )
+
+            self.load_products()
+
+            self.clear_fields()
+
+        else:
+
+            self.show_message(
+                message,
+                DANGER_COLOR
+            )
+
+    # =====================================
     # Load Products
     # =====================================
     def load_products(self):
 
-        # Clear Table
         for row in self.products_table.get_children():
-
             self.products_table.delete(row)
 
         products = ProductService.get_products()
 
-        if not products:
-            return
-
-        # Insert Products
         for product in products:
 
             self.products_table.insert(
@@ -496,9 +525,7 @@ class ProductsPage(ctk.CTkFrame):
 
         keyword = self.search_entry.get().strip().lower()
 
-        # Clear Table
         for row in self.products_table.get_children():
-
             self.products_table.delete(row)
 
         products = ProductService.get_products()
@@ -544,13 +571,9 @@ class ProductsPage(ctk.CTkFrame):
         self.clear_fields()
 
         self.name_entry.insert(0, values[1])
-
         self.barcode_entry.insert(0, values[2])
-
         self.buy_entry.insert(0, values[3])
-
         self.sell_entry.insert(0, values[4])
-
         self.qty_entry.insert(0, values[5])
 
     # =====================================
@@ -569,7 +592,7 @@ class ProductsPage(ctk.CTkFrame):
 
         confirm = messagebox.askyesno(
             "Delete Product",
-            "Are you sure you want to delete this product?"
+            "Are you sure?"
         )
 
         if not confirm:
@@ -605,17 +628,13 @@ class ProductsPage(ctk.CTkFrame):
     def clear_fields(self):
 
         self.name_entry.delete(0, "end")
-
         self.barcode_entry.delete(0, "end")
-
         self.buy_entry.delete(0, "end")
-
         self.sell_entry.delete(0, "end")
-
         self.qty_entry.delete(0, "end")
 
     # =====================================
-    # Show Message
+    # Status Message
     # =====================================
     def show_message(self, message, color):
 
