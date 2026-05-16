@@ -1,7 +1,16 @@
+# =====================================
+# إضافات جديدة داخل pages/reports.py
+# =====================================
+# 1- زر تحديث التقرير
+# 2- زر تصدير التقرير TXT
+# 3- قسم ملخص المبيعات
+# 4- تحسين شكل التقرير
+# =====================================
+
 import customtkinter as ctk
+from tkinter import filedialog
 
 from services.report_service import ReportService
-
 from config import *
 
 
@@ -58,6 +67,39 @@ class ReportsPage(ctk.CTkFrame):
         )
 
         # =====================================
+        # Refresh Button
+        # =====================================
+        self.refresh_button = ctk.CTkButton(
+            self.header,
+            text="Refresh",
+            width=120,
+            fg_color=PRIMARY_COLOR,
+            hover_color=PRIMARY_HOVER,
+            command=self.refresh_data
+        )
+
+        self.refresh_button.pack(
+            side="right",
+            padx=10
+        )
+
+        # =====================================
+        # Export Button
+        # =====================================
+        self.export_button = ctk.CTkButton(
+            self.header,
+            text="Export Report",
+            width=150,
+            fg_color=SUCCESS_COLOR,
+            hover_color="#16A34A",
+            command=self.export_report
+        )
+
+        self.export_button.pack(
+            side="right"
+        )
+
+        # =====================================
         # Statistics Cards Container
         # =====================================
         self.cards_frame = ctk.CTkFrame(
@@ -70,13 +112,38 @@ class ReportsPage(ctk.CTkFrame):
             pady=(0, 20)
         )
 
-        # Make Grid Responsive
         for i in range(4):
 
             self.cards_frame.grid_columnconfigure(
                 i,
                 weight=1
             )
+
+        # =====================================
+        # Sales Summary Card
+        # =====================================
+        self.sales_summary = ctk.CTkFrame(
+            self,
+            fg_color=CARD_COLOR,
+            corner_radius=FRAME_RADIUS
+        )
+
+        self.sales_summary.pack(
+            fill="x",
+            pady=(0, 20)
+        )
+
+        self.sales_label = ctk.CTkLabel(
+            self.sales_summary,
+            text="Today's Sales: Loading...",
+            font=SUBTITLE_FONT,
+            text_color=SUCCESS_COLOR
+        )
+
+        self.sales_label.pack(
+            padx=20,
+            pady=20
+        )
 
         # =====================================
         # Report Card
@@ -92,9 +159,6 @@ class ReportsPage(ctk.CTkFrame):
             expand=True
         )
 
-        # =====================================
-        # Report Title
-        # =====================================
         self.report_title = ctk.CTkLabel(
             self.report_card,
             text="Inventory Report",
@@ -131,6 +195,12 @@ class ReportsPage(ctk.CTkFrame):
 
         stats = ReportService.get_statistics()
 
+        sales = ReportService.get_sales_summary()
+
+        self.sales_label.configure(
+            text=f"Today's Sales: {sales:.2f} EGP"
+        )
+
         cards = [
             (
                 "Total Products",
@@ -153,6 +223,9 @@ class ReportsPage(ctk.CTkFrame):
                 DANGER_COLOR
             )
         ]
+
+        for widget in self.cards_frame.winfo_children():
+            widget.destroy()
 
         for index, card in enumerate(cards):
 
@@ -188,9 +261,6 @@ class ReportsPage(ctk.CTkFrame):
             sticky="nsew"
         )
 
-        # =====================================
-        # Value
-        # =====================================
         value_label = ctk.CTkLabel(
             card,
             text=str(value),
@@ -202,9 +272,6 @@ class ReportsPage(ctk.CTkFrame):
             pady=(30, 5)
         )
 
-        # =====================================
-        # Title
-        # =====================================
         title_label = ctk.CTkLabel(
             card,
             text=title,
@@ -235,9 +302,6 @@ class ReportsPage(ctk.CTkFrame):
 
             return
 
-        # =====================================
-        # Table Header
-        # =====================================
         self.report_box.insert(
             "end",
             f"{'ID':<5}"
@@ -253,9 +317,6 @@ class ReportsPage(ctk.CTkFrame):
             "=" * 90 + "\n"
         )
 
-        # =====================================
-        # Products
-        # =====================================
         for product in products:
 
             status = "GOOD"
@@ -273,3 +334,38 @@ class ReportsPage(ctk.CTkFrame):
                 f"{product['quantity']:<10}"
                 f"{status:<15}\n"
             )
+
+    # =====================================
+    # Refresh Data
+    # =====================================
+    def refresh_data(self):
+
+        self.load_statistics()
+
+        self.generate_report()
+
+    # =====================================
+    # Export Report
+    # =====================================
+    def export_report(self):
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt")]
+        )
+
+        if not file_path:
+            return
+
+        report_data = self.report_box.get(
+            "1.0",
+            "end"
+        )
+
+        with open(
+            file_path,
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            file.write(report_data)
